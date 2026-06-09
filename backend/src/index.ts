@@ -26,6 +26,7 @@ import { initWhatsApp } from './services/whatsapp.service';
 // Jobs
 import { startExpiryReminderCron } from './jobs/expiry-reminder.cron';
 import { startExpiryBatchCron }    from './jobs/expiry-batch.cron';
+import { startNasTelemetryCron }   from './jobs/nas-telemetry.cron';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '4000', 10);
@@ -184,6 +185,7 @@ async function main() {
   // Start background cron jobs
   startExpiryReminderCron();
   startExpiryBatchCron();
+  startNasTelemetryCron();
   logger.info('✅ Background cron jobs started');
 
   // Start WhatsApp service in background (QR/session lifecycle)

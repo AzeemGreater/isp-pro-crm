@@ -182,3 +182,50 @@ export async function getPPPoEProfiles(creds: RouterCredentials): Promise<Record
     try { conn.close(); } catch { /* ignore */ }
   }
 }
+
+/**
+ * Execute a custom command on MikroTik router.
+ */
+export async function executeCommand(creds: RouterCredentials, path: string, args: string[] = []): Promise<any> {
+  const conn = createConnection(creds);
+  try {
+    await conn.connect();
+    return await conn.write(path, args);
+  } catch (err) {
+    throw new Error(`Command execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    try { conn.close(); } catch { /* ignore */ }
+  }
+}
+
+/**
+ * Create backup file and return configuration script (for exports) or confirmation message.
+ */
+export async function createBackupFile(creds: RouterCredentials, type: 'backup' | 'export'): Promise<string> {
+  const conn = createConnection(creds);
+  try {
+    await conn.connect();
+    if (type === 'export') {
+      const data = await conn.write('/export');
+      // Format the returned data lines
+      if (Array.isArray(data)) {
+        return data.map((line: any) => {
+          if (line['.section']) return `\n# --- Section: ${line['.section']} ---`;
+          return Object.entries(line)
+            .filter(([k]) => !k.startsWith('.'))
+            .map(([k, v]) => `${k}=${v}`)
+            .join(' ');
+        }).join('\n');
+      }
+      return JSON.stringify(data, null, 2);
+    } else {
+      const filename = `crm_${Date.now()}`;
+      await conn.write('/system/backup/save', [`=name=${filename}`]);
+      return `Binary backup saved successfully on router storage as: ${filename}.backup`;
+    }
+  } catch (err) {
+    throw new Error(`Backup operation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+  } finally {
+    try { conn.close(); } catch { /* ignore */ }
+  }
+}

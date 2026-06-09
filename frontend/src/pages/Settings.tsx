@@ -1,9 +1,90 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Settings2, Server, Wifi, Bell, Shield, Save, CheckCircle, Loader2 } from 'lucide-react'
+import { Settings2, Server, Wifi, Bell, Shield, Save, CheckCircle, Loader2, Palette } from 'lucide-react'
 import api from '../lib/api'
 import { ThemeMode, applyTheme, getStoredThemeMode, setThemeMode } from '../lib/theme'
 import { applyBranding } from '../lib/branding'
+
+const PRESETS = {
+  vanilla: {
+    bgColor: '#ffffff',
+    textColor: '#000000',
+    accentColor: '#000000',
+    borderRadius: 0,
+    fontFamily: 'system-ui, -apple-system, sans-serif'
+  },
+  flat: {
+    bgColor: '#f3f4f6',
+    textColor: '#1f2937',
+    accentColor: '#4f46e5',
+    borderRadius: 4,
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+  },
+  tailwind: {
+    bgColor: '#f9fafb',
+    textColor: '#111827',
+    accentColor: '#2563eb',
+    borderRadius: 12,
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+  },
+  dark: {
+    bgColor: '#000000',
+    textColor: '#f3f4f6',
+    accentColor: '#10b981',
+    borderRadius: 16,
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+  }
+}
+
+function hexToRgb(hex: string): string {
+  const cleaned = hex.replace('#', '').trim()
+  const r = parseInt(cleaned.substring(0, 2), 16)
+  const g = parseInt(cleaned.substring(2, 4), 16)
+  const b = parseInt(cleaned.substring(4, 6), 16)
+  return `${r} ${g} ${b}`
+}
+
+function getSurface(bgHex: string): string {
+  const cleaned = bgHex.replace('#', '').trim()
+  const r = parseInt(cleaned.substring(0, 2), 16)
+  const g = parseInt(cleaned.substring(2, 4), 16)
+  const b = parseInt(cleaned.substring(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  if (luminance < 0.3) {
+    const mixR = Math.min(255, Math.round(r + (255 - r) * 0.08))
+    const mixG = Math.min(255, Math.round(g + (255 - g) * 0.08))
+    const mixB = Math.min(255, Math.round(b + (255 - b) * 0.08))
+    return `${mixR} ${mixG} ${mixB}`
+  }
+  return '255 255 255'
+}
+
+function applyCustomUiConfig(config: {
+  bgColor: string
+  textColor: string
+  accentColor: string
+  borderRadius: number
+  fontFamily: string
+}) {
+  const root = document.documentElement
+  root.style.setProperty('--bg-base', hexToRgb(config.bgColor))
+  root.style.setProperty('--bg-surface', getSurface(config.bgColor))
+  root.style.setProperty('--bg-card', getSurface(config.bgColor))
+  
+  const textRgb = hexToRgb(config.textColor)
+  root.style.setProperty('--text-primary', textRgb)
+  root.style.setProperty('--text-secondary', textRgb)
+  root.style.setProperty('--text-muted', textRgb)
+  
+  const accentRgb = hexToRgb(config.accentColor)
+  root.style.setProperty('--accent-cyan', accentRgb)
+  root.style.setProperty('--brand-blue', accentRgb)
+  
+  root.style.setProperty('--border-radius-override', config.borderRadius + 'px')
+  root.style.setProperty('--font-family-override', config.fontFamily)
+
+  localStorage.setItem('custom-ui-config', JSON.stringify(config))
+}
 
 interface SystemSettings {
   mikrotik: { default_port: number; use_tls: boolean; available_ports: number[] }
@@ -55,6 +136,14 @@ export function Settings() {
     primary_color: '#4285F4',
     accent_color: '#34A853',
   })
+  const [customTheme, setCustomTheme] = useState({
+    preset: 'tailwind',
+    bgColor: '#f9fafb',
+    textColor: '#111827',
+    accentColor: '#2563eb',
+    borderRadius: 12,
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+  })
 
   useEffect(() => {
     const adminRaw = localStorage.getItem('crm_admin')
@@ -75,6 +164,30 @@ export function Settings() {
     setLocalThemeMode(initialMode)
     applyTheme(initialMode)
 
+    try {
+      const savedConfig = localStorage.getItem('custom-ui-config')
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig)
+        let matchedPreset = 'custom'
+        for (const [key, preset] of Object.entries(PRESETS)) {
+          if (preset.bgColor === parsed.bgColor &&
+              preset.textColor === parsed.textColor &&
+              preset.accentColor === parsed.accentColor &&
+              preset.borderRadius === parsed.borderRadius &&
+              preset.fontFamily === parsed.fontFamily) {
+            matchedPreset = key
+            break
+          }
+        }
+        setCustomTheme({
+          preset: matchedPreset,
+          ...parsed
+        })
+      } else {
+        applyCustomUiConfig(PRESETS.tailwind)
+      }
+    } catch (e) {}
+
     api.get<SystemSettings>('/agents/settings').then(res => {
       setSettings(res.data)
       setMikrotikPort(res.data.mikrotik.default_port)
@@ -92,6 +205,32 @@ export function Settings() {
       }
     }).catch(() => {})
   }, [])
+
+  function handleConfigChange(key: string, value: any) {
+    const updated = {
+      ...customTheme,
+      [key]: value,
+      preset: 'custom'
+    }
+    setCustomTheme(updated)
+    applyCustomUiConfig(updated)
+  }
+
+  function handlePresetChange(presetKey: string) {
+    if (presetKey === 'custom') {
+      setCustomTheme(prev => ({ ...prev, preset: 'custom' }))
+      return
+    }
+    const preset = PRESETS[presetKey as keyof typeof PRESETS]
+    if (preset) {
+      const updated = {
+        preset: presetKey,
+        ...preset
+      }
+      setCustomTheme(updated)
+      applyCustomUiConfig(updated)
+    }
+  }
 
   function onBrandRoleChange(role: string) {
     setBrandingRole(role)
@@ -226,6 +365,119 @@ export function Settings() {
             </div>
           </div>
           {!isPrivileged && <p className="text-xs text-text-muted">Only Admin and SuperAdmin can change WhatsApp system delays.</p>}
+        </div>
+      </Section>
+
+      <Section title="UI Theme Customization" icon={Palette}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <div>
+                <label className="input-label">Theme Preset</label>
+                <select 
+                  className="select" 
+                  value={customTheme.preset} 
+                  onChange={(e) => handlePresetChange(e.target.value)}
+                >
+                  <option value="custom">Custom (Fine-tuned)</option>
+                  <option value="vanilla">The Vanilla Minimalist</option>
+                  <option value="flat">Flat Vector 2.0</option>
+                  <option value="tailwind">Tailwind Skeleton</option>
+                  <option value="dark">Edge-First Dark Mode</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="input-label">Background</label>
+                  <input 
+                    type="color" 
+                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
+                    value={customTheme.bgColor} 
+                    onChange={(e) => handleConfigChange('bgColor', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Text Color</label>
+                  <input 
+                    type="color" 
+                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
+                    value={customTheme.textColor} 
+                    onChange={(e) => handleConfigChange('textColor', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Accent / Button</label>
+                  <input 
+                    type="color" 
+                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
+                    value={customTheme.accentColor} 
+                    onChange={(e) => handleConfigChange('accentColor', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="input-label mb-0">Border Radius</label>
+                  <span className="text-xs text-text-muted">{customTheme.borderRadius}px</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="24" 
+                  className="w-full accent-accent-cyan cursor-pointer" 
+                  value={customTheme.borderRadius} 
+                  onChange={(e) => handleConfigChange('borderRadius', Number(e.target.value))}
+                />
+              </div>
+
+              <div>
+                <label className="input-label">Font Style</label>
+                <select 
+                  className="select" 
+                  value={customTheme.fontFamily} 
+                  onChange={(e) => handleConfigChange('fontFamily', e.target.value)}
+                >
+                  <option value="system-ui, -apple-system, sans-serif">System Sans</option>
+                  <option value="Georgia, Cambria, 'Times New Roman', Times, serif">Serif</option>
+                  <option value="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">Monospace</option>
+                  <option value="'Inter', system-ui, -apple-system, sans-serif">Modern Inter</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="border border-border rounded-xl p-4 flex flex-col justify-between" style={{
+              backgroundColor: customTheme.bgColor,
+              color: customTheme.textColor,
+              borderRadius: `${customTheme.borderRadius}px`,
+              fontFamily: customTheme.fontFamily
+            }}>
+              <div>
+                <h4 className="font-bold text-sm mb-2" style={{ color: customTheme.textColor }}>Live Preview Card</h4>
+                <p className="text-xs leading-relaxed opacity-85 mb-3">
+                  This card updates instantly to demonstrate your visual customizations, matching background, text color, accent, and borders.
+                </p>
+                <div className="border border-dashed p-3 text-xs mb-3" style={{
+                  borderColor: customTheme.accentColor,
+                  borderRadius: `${Math.max(0, customTheme.borderRadius - 4)}px`,
+                  backgroundColor: `${customTheme.accentColor}1A`
+                }}>
+                  <span className="font-semibold">Illustrative Outline Box</span>
+                  <div className="opacity-75 mt-1">Nested content inherits custom styles.</div>
+                </div>
+              </div>
+              <button 
+                className="w-full text-white text-xs font-semibold py-2 px-4 transition-opacity hover:opacity-95 active:scale-[0.98]" 
+                style={{
+                  backgroundColor: customTheme.accentColor,
+                  borderRadius: `${customTheme.borderRadius / 1.5}px`
+                }}
+              >
+                Active Primary Button
+              </button>
+            </div>
+          </div>
         </div>
       </Section>
 

@@ -32,21 +32,36 @@ export function ZonesAreas() {
   }, [])
 
   async function createZone() {
-    if (!form.zone_code || !form.area_name || !form.city) return
-    await api.post('/network/zones', form)
-    setForm({ zone_code: '', area_name: '', city: '', description: '' })
-    await load()
+    if (!form.zone_code || !form.area_name || !form.city) {
+      alert('Please fill out Zone Code, Area Name, and City.');
+      return;
+    }
+    try {
+      await api.post('/network/zones', form)
+      setForm({ zone_code: '', area_name: '', city: '', description: '' })
+      await load()
+    } catch (err: any) {
+      console.error(err)
+      const msg = err.response?.data?.error || 'Failed to create zone'
+      alert(msg)
+    }
   }
 
   async function saveZone(z: Zone) {
-    await api.put(`/network/zones/${z.id}`, {
-      area_name: z.area_name,
-      city: z.city,
-      description: z.description,
-      is_active: z.is_active,
-    })
-    setEditingId(null)
-    await load()
+    try {
+      await api.put(`/network/zones/${z.id}`, {
+        area_name: z.area_name,
+        city: z.city,
+        description: z.description,
+        is_active: z.is_active,
+      })
+      setEditingId(null)
+      await load()
+    } catch (err: any) {
+      console.error(err)
+      const msg = err.response?.data?.error || 'Failed to save zone'
+      alert(msg)
+    }
   }
 
   return (

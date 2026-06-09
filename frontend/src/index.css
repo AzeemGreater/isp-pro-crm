@@ -32,6 +32,10 @@
   --text-primary: 15 23 42;
   --text-secondary: 51 65 85;
   --text-muted: 100 116 139;
+
+  /* Custom theme defaults */
+  --border-radius-override: 12px;
+  --font-family-override: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .dark {
@@ -75,6 +79,15 @@
     background-image:
       radial-gradient(circle at 10% 0%, rgba(66, 133, 244, 0.08), transparent 30%),
       radial-gradient(circle at 90% 100%, rgba(52, 168, 83, 0.08), transparent 35%);
+  }
+
+  /* Apply custom theme font-family and border-radius overrides */
+  body, button, input, select, textarea, .btn, .card, .input, .rounded-lg, .rounded-xl, .rounded-xl2, .rounded-xl3 {
+    font-family: var(--font-family-override) !important;
+  }
+
+  .card, .input, .btn, select, button, .rounded-lg, .rounded-xl {
+    border-radius: var(--border-radius-override) !important;
   }
 
   ::-webkit-scrollbar       { width: 6px; height: 6px; }

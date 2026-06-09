@@ -20,7 +20,7 @@ router.get('/zones', async (_req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to fetch zones' }); }
 });
 
-router.post('/zones', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+router.post('/zones', requireRole('SuperAdmin', 'Admin', 'Agent'), async (req: Request, res: Response) => {
   try {
     const { zone_code, area_name, city, description } = req.body as Record<string, string>;
     const result = await pool.query(
@@ -36,7 +36,7 @@ router.post('/zones', requireRole('SuperAdmin', 'Admin'), async (req: Request, r
   }
 });
 
-router.put('/zones/:id', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+router.put('/zones/:id', requireRole('SuperAdmin', 'Admin', 'Agent'), async (req: Request, res: Response) => {
   try {
     const { area_name, city, description, is_active } = req.body as Record<string, string>;
     const result = await pool.query(

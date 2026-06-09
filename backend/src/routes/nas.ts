@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/pool';
 import { authMiddleware, requireRole, isAgentRequest, getActorAdminId } from '../middleware/auth';
 import { logger } from '../utils/logger';
-import { getSystemResources, getInterfaceTraffic, getActiveSessions, kickUser } from '../network/mikrotik.service';
+import { getSystemResources, getInterfaceTraffic, getActiveSessions, kickUser, executeCommand, createBackupFile } from '../network/mikrotik.service';
 import { getONUPower, listAllONUs } from '../network/olt.service';
 
 const router = Router();
@@ -332,6 +332,158 @@ router.get('/olt/:id/onus', async (req: Request, res: Response) => {
     res.json({ onus, count: onus.length });
   } catch (err) {
     res.status(503).json({ error: err instanceof Error ? err.message : 'OLT unreachable', onus: [] });
+  }
+});
+
+async function ensureTelemetrySchema(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nas_telemetry (
+      id SERIAL PRIMARY KEY,
+      nas_id INT REFERENCES nas_routers(id) ON DELETE CASCADE,
+      latency_ms INT NOT NULL,
+      is_online BOOLEAN NOT NULL,
+      checked_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+}
+
+async function ensureBackupsSchema(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nas_backups (
+      id SERIAL PRIMARY KEY,
+      nas_id INT REFERENCES nas_routers(id) ON DELETE CASCADE,
+      filename VARCHAR(255) NOT NULL,
+      backup_type VARCHAR(32) NOT NULL,
+      file_content TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+}
+
+// ─── POST /api/nas/:id/command ────────────────────────────────────────────────
+router.post('/:id/command', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+  try {
+    const { command } = req.body as { command: string };
+    if (!command) {
+      res.status(400).json({ error: 'Command is required' });
+      return;
+    }
+
+    const nasRes = await pool.query('SELECT * FROM nas_routers WHERE id = $1', [req.params.id]);
+    if (!nasRes.rows[0]) {
+      res.status(404).json({ error: 'NAS router not found' });
+      return;
+    }
+    const nas = nasRes.rows[0];
+
+    const creds = {
+      ip: nas.ip_address,
+      port: nas.api_port,
+      username: nas.api_user,
+      encryptedPassword: nas.encrypted_api_pass,
+    };
+
+    let path = command.trim();
+    if (!path.startsWith('/')) {
+      path = '/' + path;
+    }
+    
+    const parts = path.split(/\s+/);
+    const apiPath = parts[0].replace(/\s+/g, '/').replace(/\/+/g, '/');
+    const args = parts.slice(1);
+
+    const output = await executeCommand(creds, apiPath, args);
+    res.json({ output });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Command execution failed' });
+  }
+});
+
+// ─── GET /api/nas/:id/telemetry ──────────────────────────────────────────────
+router.get('/:id/telemetry', async (req: Request, res: Response) => {
+  try {
+    await ensureTelemetrySchema();
+    const result = await pool.query(
+      'SELECT latency_ms, is_online, checked_at FROM nas_telemetry WHERE nas_id = $1 ORDER BY checked_at DESC LIMIT 50',
+      [req.params.id]
+    );
+    res.json(result.rows.reverse());
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch telemetry logs' });
+  }
+});
+
+// ─── POST /api/nas/:id/backups ───────────────────────────────────────────────
+router.post('/:id/backups', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+  try {
+    const { backup_type } = req.body as { backup_type: 'backup' | 'export' };
+    if (!backup_type || !['backup', 'export'].includes(backup_type)) {
+      res.status(400).json({ error: 'Invalid or missing backup_type' });
+      return;
+    }
+
+    await ensureBackupsSchema();
+    const nasRes = await pool.query('SELECT * FROM nas_routers WHERE id = $1', [req.params.id]);
+    if (!nasRes.rows[0]) {
+      res.status(404).json({ error: 'NAS router not found' });
+      return;
+    }
+    const nas = nasRes.rows[0];
+
+    const creds = {
+      ip: nas.ip_address,
+      port: nas.api_port,
+      username: nas.api_user,
+      encryptedPassword: nas.encrypted_api_pass,
+    };
+
+    const content = await createBackupFile(creds, backup_type);
+    const extension = backup_type === 'export' ? 'rsc' : 'backup';
+    const filename = `nas_${nas.name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.${extension}`;
+
+    const insertResult = await pool.query(
+      `INSERT INTO nas_backups (nas_id, filename, backup_type, file_content) 
+       VALUES ($1, $2, $3, $4) RETURNING id, filename, backup_type, created_at`,
+      [nas.id, filename, backup_type, Buffer.from(content).toString('base64')]
+    );
+
+    res.status(201).json(insertResult.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Backup creation failed' });
+  }
+});
+
+// ─── GET /api/nas/:id/backups ────────────────────────────────────────────────
+router.get('/:id/backups', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+  try {
+    await ensureBackupsSchema();
+    const result = await pool.query(
+      'SELECT id, filename, backup_type, created_at FROM nas_backups WHERE nas_id = $1 ORDER BY created_at DESC',
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch backups' });
+  }
+});
+
+// ─── GET /api/nas/backups/:backupId/download ─────────────────────────────────
+router.get('/backups/:backupId/download', requireRole('SuperAdmin', 'Admin'), async (req: Request, res: Response) => {
+  try {
+    await ensureBackupsSchema();
+    const result = await pool.query('SELECT filename, file_content FROM nas_backups WHERE id = $1', [req.params.backupId]);
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Backup file not found' });
+      return;
+    }
+    const backup = result.rows[0];
+    const fileBuffer = Buffer.from(backup.file_content, 'base64');
+    
+    res.setHeader('Content-disposition', `attachment; filename=${backup.filename}`);
+    res.setHeader('Content-type', 'application/octet-stream');
+    res.send(fileBuffer);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to download backup' });
   }
 });
 
