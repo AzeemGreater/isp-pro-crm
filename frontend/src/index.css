@@ -58,10 +58,13 @@
 }
 
 @layer base {
-  *, *::before, *::after { box-sizing: border-box; }
+  *, *::before, *::after { 
+    box-sizing: border-box; 
+    animation: none !important;
+    transition: none !important;
+  }
   
   html {
-    scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -89,21 +92,20 @@
   /* Buttons */
   .btn {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
-           transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2
+           focus:outline-none focus:ring-2 focus:ring-offset-2
            focus:ring-offset-bg-base disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-accent-cyan hover:bg-accent-cyan-dim text-white focus:ring-accent-cyan
-           shadow-glow-cyan hover:shadow-none;
+    @apply btn bg-accent-cyan text-white focus:ring-accent-cyan shadow-glow-cyan;
   }
   .btn-success {
-    @apply btn bg-status-active hover:opacity-90 text-white focus:ring-status-active shadow-glow-green;
+    @apply btn bg-status-active text-white focus:ring-status-active shadow-glow-green;
   }
   .btn-danger {
-    @apply btn bg-status-expired hover:opacity-90 text-white focus:ring-status-expired;
+    @apply btn bg-status-expired text-white focus:ring-status-expired;
   }
   .btn-ghost {
-    @apply btn bg-transparent hover:bg-bg-hover text-text-secondary hover:text-text-primary border border-border;
+    @apply btn bg-transparent text-text-secondary border border-border;
   }
   .btn-sm {
     @apply !px-3 !py-1.5 !text-xs;
@@ -122,7 +124,7 @@
   .input {
     @apply w-full bg-bg-base border border-border rounded-lg px-3 py-2 text-sm text-text-primary
            placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-cyan/50
-           focus:border-accent-cyan transition-colors;
+           focus:border-accent-cyan;
   }
   .input-label {
     @apply block text-xs font-medium text-text-secondary mb-1.5;
@@ -135,13 +137,12 @@
   .data-table         { @apply w-full text-sm; }
   .data-table thead   { @apply border-b border-border; }
   .data-table th      { @apply px-4 py-3 text-left text-xs font-semibold text-text-muted uppercase tracking-wider; }
-  .data-table tbody tr { @apply border-b border-border/50 hover:bg-bg-hover/50 transition-colors; }
+  .data-table tbody tr { @apply border-b border-border/50; }
   .data-table td      { @apply px-4 py-3 text-text-secondary; }
 
   /* Sidebar nav item */
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-secondary
-           hover:bg-bg-hover hover:text-text-primary transition-all duration-150 cursor-pointer;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-text-secondary cursor-pointer;
   }
   .nav-item-active {
     @apply nav-item bg-accent-cyan/10 text-accent-cyan border-l-2 border-accent-cyan;
