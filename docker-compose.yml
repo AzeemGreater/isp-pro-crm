@@ -123,8 +123,7 @@ services:
     networks:
       crm-net:
         ipv4_address: 172.20.0.12
-    ports:
-      - "127.0.0.1:4000:4000"   # Internal only — Nginx proxies /api
+    # No host port exposure needed — Nginx proxies /api internally
     deploy:
       resources:
         limits:
@@ -151,8 +150,7 @@ services:
     networks:
       crm-net:
         ipv4_address: 172.20.0.13
-    ports:
-      - "127.0.0.1:3000:80"    # Internal only — master Nginx proxies /
+    # No host port exposure needed — master Nginx proxies / internally
     deploy:
       resources:
         limits:
