@@ -16,6 +16,6 @@ docker-compose up -d --build
 
 # 3. Apply database migrations if any (assuming volume handles standard schema, but restarting backend applies schema on boot if handled there)
 echo "Restarting backend to apply potential schema updates..."
-docker-compose restart backend
+docker-compose restart backend_api
 
 echo "Deployment completed successfully!"
