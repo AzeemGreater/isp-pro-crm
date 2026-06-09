@@ -88,24 +88,9 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 
-// CORS — allow only trusted origins
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  process.env.VITE_API_BASE_URL || 'http://localhost:5173',
-  'http://localhost:3001',
-  'https://localhost',
-  'http://localhost:4885',
-  'http://10.55.44.102:4885',
-  `http://${process.env.VPS_IP || '10.55.44.102'}:4885`,
-];
+// CORS — allow the requesting origin dynamically to support dynamic public IPs
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
