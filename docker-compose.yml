@@ -1,0 +1,207 @@
+version: "3.9"
+
+# =============================================================================
+#  ISP-CRM Master Docker Compose
+#  Network: crm-net (isolated bridge)
+# =============================================================================
+
+networks:
+  crm-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+volumes:
+  postgres_data:
+    driver: local
+  freeradius_logs:
+    driver: local
+  nginx_certs:
+    driver: local
+  certbot_webroot:
+    driver: local
+
+services:
+  # ---------------------------------------------------------------------------
+  #  db_core — PostgreSQL 16 (Optimized for Financial Ledgers)
+  # ---------------------------------------------------------------------------
+  db_core:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    container_name: isp_db_core
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
+    networks:
+      crm-net:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "127.0.0.1:5432:5432"   # Localhost only — never expose publicly
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  #  freeradius_engine — FreeRADIUS v3 with PostgreSQL SQL AAA
+  # ---------------------------------------------------------------------------
+  freeradius_engine:
+    build:
+      context: ./docker/freeradius
+      dockerfile: Dockerfile
+    container_name: isp_freeradius
+    restart: unless-stopped
+    depends_on:
+      db_core:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "1812:1812/udp"   # RADIUS Authentication
+      - "1813:1813/udp"   # RADIUS Accounting
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    networks:
+      crm-net:
+        ipv4_address: 172.20.0.11
+    volumes:
+      - freeradius_logs:/var/log/freeradius
+      - ./docker/freeradius/mods-available/sql:/etc/freeradius/3.0/mods-available/sql:ro
+      - ./docker/freeradius/mods-enabled/sql:/etc/freeradius/3.0/mods-enabled/sql:ro
+    healthcheck:
+      test: ["CMD", "radtest", "healthcheck", "healthcheck", "127.0.0.1", "0", "testing123"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  #  backend_api — Node.js 20 / TypeScript / Express
+  # ---------------------------------------------------------------------------
+  backend_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: isp_backend
+    restart: unless-stopped
+    depends_on:
+      db_core:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      API_PORT: ${API_PORT:-4000}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db_core:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      AES_KEY: ${AES_KEY}
+      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
+      WHATSAPP_BUSINESS_ACCOUNT_ID: ${WHATSAPP_BUSINESS_ACCOUNT_ID}
+      MIKROTIK_USE_TLS: ${MIKROTIK_USE_TLS:-true}
+      MIKROTIK_API_PORT: ${MIKROTIK_API_PORT:-8729}
+    networks:
+      crm-net:
+        ipv4_address: 172.20.0.12
+    ports:
+      - "127.0.0.1:4000:4000"   # Internal only — Nginx proxies /api
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  #  frontend_ui — React + Vite built, served by Nginx
+  # ---------------------------------------------------------------------------
+  frontend_ui:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    container_name: isp_frontend
+    restart: unless-stopped
+    networks:
+      crm-net:
+        ipv4_address: 172.20.0.13
+    ports:
+      - "127.0.0.1:3000:80"    # Internal only — master Nginx proxies /
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  #  nginx_proxy — Master Reverse Proxy + SSL Termination
+  # ---------------------------------------------------------------------------
+  nginx_proxy:
+    image: nginx:1.25-alpine
+    container_name: isp_nginx
+    restart: unless-stopped
+    depends_on:
+      - backend_api
+      - frontend_ui
+    ports:
+      - "4885:4885"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - nginx_certs:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+    networks:
+      crm-net:
+        ipv4_address: 172.20.0.14
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  #  certbot — Let's Encrypt SSL Certificate Manager
+  # ---------------------------------------------------------------------------
+  certbot:
+    image: certbot/certbot:latest
+    container_name: isp_certbot
+    volumes:
+      - nginx_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
+    networks:
+      - crm-net

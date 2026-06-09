@@ -1,0 +1,31 @@
+sql {
+    driver = "rlm_sql_postgresql"
+    dialect = "postgresql"
+
+    # Connection info: Use environment variables
+    server = "${ENV:DB_HOST}"
+    port = "${ENV:DB_PORT}"
+    login = "${ENV:DB_USER}"
+    password = "${ENV:DB_PASS}"
+    radius_db = "${ENV:DB_NAME}"
+
+    # Connection pool
+    pool {
+        start = 5
+        min = 5
+        max = 30
+        spare = 10
+        uses = 0
+        retry_delay = 30
+        lifetime = 0
+        idle_timeout = 60
+    }
+
+    # Standard queries
+    client_table = "nas"
+    groupcmp_table = "radgroupcheck"
+    usergroup_table = "radusergroup"
+
+    read_groups = yes
+    read_profiles = yes
+}

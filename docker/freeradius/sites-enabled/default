@@ -1,0 +1,76 @@
+server default {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 0
+        limit {
+              max_connections = 16
+              lifetime = 0
+              idle_timeout = 30
+        }
+    }
+
+    listen {
+        type = acct
+        ipaddr = *
+        port = 0
+        limit {
+              max_connections = 16
+              lifetime = 0
+              idle_timeout = 30
+        }
+    }
+
+    authorize {
+        filter_username
+        preprocess
+        chap
+        mschap
+        digest
+        pap
+        
+        # Call SQL module
+        sql
+        
+        expiration
+        logintime
+    }
+
+    authenticate {
+        Auth-Type PAP {
+            pap
+        }
+        Auth-Type CHAP {
+            chap
+        }
+        Auth-Type MS-CHAP {
+            mschap
+        }
+        digest
+    }
+
+    preacct {
+        preprocess
+        acct_unique
+    }
+
+    accounting {
+        detail
+        sql
+        exec
+        attr_filter.accounting_response
+    }
+
+    session {
+        sql
+    }
+
+    post-auth {
+        sql
+        exec
+        Post-Auth-Type REJECT {
+            -sql
+            attr_filter.access_reject
+        }
+    }
+}
