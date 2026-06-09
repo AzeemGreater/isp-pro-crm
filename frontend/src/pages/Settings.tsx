@@ -6,33 +6,68 @@ import { ThemeMode, applyTheme, getStoredThemeMode, setThemeMode } from '../lib/
 import { applyBranding } from '../lib/branding'
 
 const PRESETS = {
-  vanilla: {
+  'vanilla-minimalist': {
     bgColor: '#ffffff',
     textColor: '#000000',
     accentColor: '#000000',
+    sidebarColor: '#ffffff',
     borderRadius: 0,
+    glassOpacity: 0,
     fontFamily: 'system-ui, -apple-system, sans-serif'
   },
-  flat: {
+  'flat-vector': {
     bgColor: '#f3f4f6',
     textColor: '#1f2937',
     accentColor: '#4f46e5',
+    sidebarColor: '#ffffff',
     borderRadius: 4,
+    glassOpacity: 0,
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
   },
-  tailwind: {
+  'tailwind-skeleton': {
     bgColor: '#f9fafb',
     textColor: '#111827',
     accentColor: '#2563eb',
+    sidebarColor: '#1f2937',
     borderRadius: 12,
+    glassOpacity: 0,
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
   },
-  dark: {
+  'edge-first-dark': {
     bgColor: '#000000',
     textColor: '#f3f4f6',
     accentColor: '#10b981',
+    sidebarColor: '#000000',
     borderRadius: 16,
+    glassOpacity: 0,
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+  },
+  'glassmorphism': {
+    bgColor: '#0f172a',
+    textColor: '#f8fafc',
+    accentColor: '#38bdf8',
+    sidebarColor: '#1e293b',
+    borderRadius: 16,
+    glassOpacity: 60,
+    fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+  },
+  'neo-brutalism': {
+    bgColor: '#f0e6d2',
+    textColor: '#000000',
+    accentColor: '#ff3e3e',
+    sidebarColor: '#ffd600',
+    borderRadius: 0,
+    glassOpacity: 0,
+    fontFamily: 'Impact, Arial Black, sans-serif'
+  },
+  'os-standard': {
+    bgColor: '#f3f3f3',
+    textColor: '#202020',
+    accentColor: '#0078d4',
+    sidebarColor: '#e6e6e6',
+    borderRadius: 4,
+    glassOpacity: 10,
+    fontFamily: "'Segoe UI', system-ui, sans-serif"
   }
 }
 
@@ -60,13 +95,18 @@ function getSurface(bgHex: string): string {
 }
 
 function applyCustomUiConfig(config: {
+  preset: string
   bgColor: string
   textColor: string
   accentColor: string
+  sidebarColor: string
   borderRadius: number
+  glassOpacity: number
   fontFamily: string
 }) {
   const root = document.documentElement
+  root.setAttribute('data-theme-preset', config.preset)
+
   root.style.setProperty('--bg-base', hexToRgb(config.bgColor))
   root.style.setProperty('--bg-surface', getSurface(config.bgColor))
   root.style.setProperty('--bg-card', getSurface(config.bgColor))
@@ -79,6 +119,12 @@ function applyCustomUiConfig(config: {
   const accentRgb = hexToRgb(config.accentColor)
   root.style.setProperty('--accent-cyan', accentRgb)
   root.style.setProperty('--brand-blue', accentRgb)
+
+  const sidebarRgb = hexToRgb(config.sidebarColor)
+  root.style.setProperty('--sidebar-bg-override', `rgb(${sidebarRgb})`)
+  root.style.setProperty('--sidebar-bg-rgb', sidebarRgb)
+
+  root.style.setProperty('--glass-opacity-override', String(config.glassOpacity))
   
   root.style.setProperty('--border-radius-override', config.borderRadius + 'px')
   root.style.setProperty('--font-family-override', config.fontFamily)
@@ -137,11 +183,13 @@ export function Settings() {
     accent_color: '#34A853',
   })
   const [customTheme, setCustomTheme] = useState({
-    preset: 'tailwind',
+    preset: 'tailwind-skeleton',
     bgColor: '#f9fafb',
     textColor: '#111827',
     accentColor: '#2563eb',
+    sidebarColor: '#1f2937',
     borderRadius: 12,
+    glassOpacity: 0,
     fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
   })
 
@@ -173,7 +221,9 @@ export function Settings() {
           if (preset.bgColor === parsed.bgColor &&
               preset.textColor === parsed.textColor &&
               preset.accentColor === parsed.accentColor &&
+              preset.sidebarColor === parsed.sidebarColor &&
               preset.borderRadius === parsed.borderRadius &&
+              preset.glassOpacity === parsed.glassOpacity &&
               preset.fontFamily === parsed.fontFamily) {
             matchedPreset = key
             break
@@ -184,7 +234,7 @@ export function Settings() {
           ...parsed
         })
       } else {
-        applyCustomUiConfig(PRESETS.tailwind)
+        applyCustomUiConfig({ preset: 'tailwind-skeleton', ...PRESETS['tailwind-skeleton'] })
       }
     } catch (e) {}
 
@@ -368,114 +418,224 @@ export function Settings() {
         </div>
       </Section>
 
-      <Section title="UI Theme Customization" icon={Palette}>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div>
-                <label className="input-label">Theme Preset</label>
-                <select 
-                  className="select" 
-                  value={customTheme.preset} 
-                  onChange={(e) => handlePresetChange(e.target.value)}
-                >
-                  <option value="custom">Custom (Fine-tuned)</option>
-                  <option value="vanilla">The Vanilla Minimalist</option>
-                  <option value="flat">Flat Vector 2.0</option>
-                  <option value="tailwind">Tailwind Skeleton</option>
-                  <option value="dark">Edge-First Dark Mode</option>
-                </select>
-              </div>
+      <Section title="Interface & Customization Settings" icon={Palette}>
+        <div className="space-y-6">
+          {/* Zone 1: Global Preset Styles */}
+          <div>
+            <label className="input-label font-semibold text-sm mb-3">1. Global Preset Styles</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.keys(PRESETS).map((key) => {
+                const label = key
+                  .split('-')
+                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(' ');
+                const isActive = customTheme.preset === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handlePresetChange(key)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      isActive
+                        ? 'border-accent-cyan bg-accent-cyan/10 ring-2 ring-accent-cyan/25'
+                        : 'border-border bg-bg-surface hover:bg-bg-hover'
+                    }`}
+                  >
+                    <div className="font-semibold text-xs text-text-primary truncate">{label}</div>
+                    <div className="flex gap-1 mt-1.5">
+                      <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: PRESETS[key as keyof typeof PRESETS].bgColor }} title="Canvas Bg" />
+                      <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: PRESETS[key as keyof typeof PRESETS].sidebarColor }} title="Sidebar Bg" />
+                      <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ backgroundColor: PRESETS[key as keyof typeof PRESETS].accentColor }} title="Accent color" />
+                    </div>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => handlePresetChange('custom')}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  customTheme.preset === 'custom'
+                    ? 'border-accent-cyan bg-accent-cyan/10 ring-2 ring-accent-cyan/25'
+                    : 'border-border bg-bg-surface hover:bg-bg-hover'
+                }`}
+              >
+                <div className="font-semibold text-xs text-text-primary truncate">Custom (Fine-tuned)</div>
+                <div className="text-[10px] text-text-muted mt-1">Manual overrides active</div>
+              </button>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="input-label">Background</label>
-                  <input 
-                    type="color" 
-                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
-                    value={customTheme.bgColor} 
-                    onChange={(e) => handleConfigChange('bgColor', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="input-label">Text Color</label>
-                  <input 
-                    type="color" 
-                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
-                    value={customTheme.textColor} 
-                    onChange={(e) => handleConfigChange('textColor', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="input-label">Accent / Button</label>
-                  <input 
-                    type="color" 
-                    className="w-full h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent" 
-                    value={customTheme.accentColor} 
-                    onChange={(e) => handleConfigChange('accentColor', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="input-label mb-0">Border Radius</label>
-                  <span className="text-xs text-text-muted">{customTheme.borderRadius}px</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="24" 
-                  className="w-full accent-accent-cyan cursor-pointer" 
-                  value={customTheme.borderRadius} 
-                  onChange={(e) => handleConfigChange('borderRadius', Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <label className="input-label">Font Style</label>
-                <select 
-                  className="select" 
-                  value={customTheme.fontFamily} 
-                  onChange={(e) => handleConfigChange('fontFamily', e.target.value)}
-                >
-                  <option value="system-ui, -apple-system, sans-serif">System Sans</option>
-                  <option value="Georgia, Cambria, 'Times New Roman', Times, serif">Serif</option>
-                  <option value="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">Monospace</option>
-                  <option value="'Inter', system-ui, -apple-system, sans-serif">Modern Inter</option>
-                </select>
-              </div>
+          {/* Zone 2: Granular Adjustments */}
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <label className="input-label font-semibold text-sm mb-0">2. Granular Adjustments</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const defaultPreset = 'tailwind-skeleton';
+                  const presetData = PRESETS[defaultPreset];
+                  const updated = { preset: defaultPreset, ...presetData };
+                  setCustomTheme(updated);
+                  applyCustomUiConfig(updated);
+                }}
+                className="text-xs text-accent-cyan hover:underline font-medium"
+              >
+                Reset to Preset Defaults
+              </button>
             </div>
 
-            <div className="border border-border rounded-xl p-4 flex flex-col justify-between" style={{
-              backgroundColor: customTheme.bgColor,
-              color: customTheme.textColor,
-              borderRadius: `${customTheme.borderRadius}px`,
-              fontFamily: customTheme.fontFamily
-            }}>
-              <div>
-                <h4 className="font-bold text-sm mb-2" style={{ color: customTheme.textColor }}>Live Preview Card</h4>
-                <p className="text-xs leading-relaxed opacity-85 mb-3">
-                  This card updates instantly to demonstrate your visual customizations, matching background, text color, accent, and borders.
-                </p>
-                <div className="border border-dashed p-3 text-xs mb-3" style={{
-                  borderColor: customTheme.accentColor,
-                  borderRadius: `${Math.max(0, customTheme.borderRadius - 4)}px`,
-                  backgroundColor: `${customTheme.accentColor}1A`
-                }}>
-                  <span className="font-semibold">Illustrative Outline Box</span>
-                  <div className="opacity-75 mt-1">Nested content inherits custom styles.</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="input-label">Background Color</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        className="w-10 h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent"
+                        value={customTheme.bgColor}
+                        onChange={(e) => handleConfigChange('bgColor', e.target.value)}
+                      />
+                      <span className="text-xs font-mono text-text-muted uppercase">{customTheme.bgColor}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Sidebar Background</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        className="w-10 h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent"
+                        value={customTheme.sidebarColor}
+                        onChange={(e) => handleConfigChange('sidebarColor', e.target.value)}
+                      />
+                      <span className="text-xs font-mono text-text-muted uppercase">{customTheme.sidebarColor}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Accent Color</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        className="w-10 h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent"
+                        value={customTheme.accentColor}
+                        onChange={(e) => handleConfigChange('accentColor', e.target.value)}
+                      />
+                      <span className="text-xs font-mono text-text-muted uppercase">{customTheme.accentColor}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Text Color</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        className="w-10 h-10 border border-border rounded-lg cursor-pointer p-0 bg-transparent"
+                        value={customTheme.textColor}
+                        onChange={(e) => handleConfigChange('textColor', e.target.value)}
+                      />
+                      <span className="text-xs font-mono text-text-muted uppercase">{customTheme.textColor}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="input-label mb-0">Border Radius</label>
+                    <span className="text-xs font-semibold text-text-primary">{customTheme.borderRadius}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="24"
+                    className="w-full accent-accent-cyan cursor-pointer"
+                    value={customTheme.borderRadius}
+                    onChange={(e) => handleConfigChange('borderRadius', Number(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="input-label mb-0">Glass Transparency / Opacity</label>
+                    <span className="text-xs font-semibold text-text-primary">{customTheme.glassOpacity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    className="w-full accent-accent-cyan cursor-pointer"
+                    value={customTheme.glassOpacity}
+                    onChange={(e) => handleConfigChange('glassOpacity', Number(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Font Stack Override</label>
+                  <select
+                    className="select text-xs"
+                    value={customTheme.fontFamily}
+                    onChange={(e) => handleConfigChange('fontFamily', e.target.value)}
+                  >
+                    <option value="system-ui, -apple-system, sans-serif">System Sans Stack</option>
+                    <option value="Georgia, Cambria, 'Times New Roman', serif">Traditional Serif</option>
+                    <option value="ui-monospace, SFMono-Regular, Monaco, monospace">Developer Monospace</option>
+                    <option value="'Inter', system-ui, -apple-system, sans-serif">Modern Inter</option>
+                    <option value="Impact, Arial Black, sans-serif">Neo-Brutalism Impact</option>
+                    <option value="'Segoe UI', -apple-system, sans-serif">OS Fluent Stack</option>
+                  </select>
                 </div>
               </div>
-              <button 
-                className="w-full text-white text-xs font-semibold py-2 px-4 transition-opacity hover:opacity-95 active:scale-[0.98]" 
+
+              {/* Live Preview Card */}
+              <div
+                className="border border-border p-4 flex flex-col justify-between transition-all"
                 style={{
-                  backgroundColor: customTheme.accentColor,
-                  borderRadius: `${customTheme.borderRadius / 1.5}px`
+                  backgroundColor: customTheme.bgColor,
+                  color: customTheme.textColor,
+                  borderRadius: `${customTheme.borderRadius}px`,
+                  fontFamily: customTheme.fontFamily,
+                  boxShadow: customTheme.preset === 'neo-brutalism' ? '4px 4px 0px #000000' : 'none',
+                  borderWidth: customTheme.preset === 'neo-brutalism' ? '3px' : '1px',
+                  borderColor: customTheme.preset === 'neo-brutalism' ? '#000000' : 'rgb(var(--border))',
                 }}
               >
-                Active Primary Button
-              </button>
+                <div>
+                  <h4 className="font-bold text-sm mb-1.5" style={{ color: customTheme.textColor }}>Live Preview Card</h4>
+                  <p className="text-xs leading-relaxed opacity-80 mb-3">
+                    Demonstration of variables updated directly on the document root element. The active presets reflect real-time canvas attributes.
+                  </p>
+
+                  <div
+                    className="p-3 text-xs mb-3 border"
+                    style={{
+                      borderColor: customTheme.preset === 'neo-brutalism' ? '#000000' : customTheme.accentColor,
+                      borderWidth: customTheme.preset === 'neo-brutalism' ? '2px' : '1px',
+                      borderRadius: `${Math.max(0, customTheme.borderRadius - 4)}px`,
+                      backgroundColor: customTheme.preset === 'glassmorphism' 
+                        ? `rgba(255,255,255,${(100 - customTheme.glassOpacity) / 300})` 
+                        : `${customTheme.accentColor}12`
+                    }}
+                  >
+                    <span className="font-semibold">Sub-component Area</span>
+                    <div className="opacity-70 mt-1">Nested nodes inherit accent & borders.</div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="w-full text-white text-xs font-semibold py-2 px-4 transition-all hover:opacity-90 active:scale-[0.98]"
+                  style={{
+                    backgroundColor: customTheme.accentColor,
+                    color: customTheme.textColor === '#000000' && customTheme.accentColor === '#ffd600' ? '#000000' : '#ffffff',
+                    borderRadius: `${customTheme.borderRadius / 1.5}px`,
+                    border: customTheme.preset === 'neo-brutalism' ? '2px solid #000000' : 'none',
+                    boxShadow: customTheme.preset === 'neo-brutalism' ? '2px 2px 0px #000000' : 'none',
+                  }}
+                >
+                  Primary Call To Action
+                </button>
+              </div>
             </div>
           </div>
         </div>

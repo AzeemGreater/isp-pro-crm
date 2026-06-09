@@ -52,7 +52,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     <motion.aside
       animate={{ width: isOpen ? 256 : 64 }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 h-screen bg-bg-surface border-r border-border z-40 flex flex-col overflow-hidden"
+      className="fixed left-0 top-0 h-screen bg-bg-surface border-r border-border z-40 flex flex-col overflow-hidden sidebar-custom"
     >
       {/* Logo */}
       <div className="border-b border-border min-h-[72px]">

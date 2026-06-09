@@ -35,7 +35,7 @@ export function SubdealerSidebar({ isOpen, onToggle }: SubdealerSidebarProps) {
     <motion.aside
       animate={{ width: isOpen ? 256 : 64 }}
       transition={{ duration: 0.25, ease: 'easeInOut' }}
-      className="fixed left-0 top-0 h-screen bg-bg-surface border-r border-border z-40 flex flex-col overflow-hidden"
+      className="fixed left-0 top-0 h-screen bg-bg-surface border-r border-border z-40 flex flex-col overflow-hidden sidebar-custom"
     >
       <div className="border-b border-border min-h-[72px]">
         <NavLink to="/subdealer/dashboard" end className="flex items-center gap-3 px-4 py-5 hover:bg-bg-hover/40 transition-colors">

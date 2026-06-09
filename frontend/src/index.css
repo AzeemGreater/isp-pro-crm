@@ -36,6 +36,9 @@
   /* Custom theme defaults */
   --border-radius-override: 12px;
   --font-family-override: 'Inter', system-ui, -apple-system, sans-serif;
+  --sidebar-bg-override: var(--bg-surface);
+  --sidebar-bg-rgb: 255 255 255;
+  --glass-opacity-override: 0;
 }
 
 .dark {
@@ -192,4 +195,116 @@
   }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* Custom Theme Overrides & Presets Engine */
+
+.sidebar-custom {
+  background-color: var(--sidebar-bg-override) !important;
+  border-right: 1px solid rgb(var(--border)) !important;
+  box-shadow: none !important;
+}
+
+/* 1. The Vanilla Minimalist */
+[data-theme-preset="vanilla-minimalist"] body {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
+[data-theme-preset="vanilla-minimalist"] .card,
+[data-theme-preset="vanilla-minimalist"] .sidebar-custom,
+[data-theme-preset="vanilla-minimalist"] .input,
+[data-theme-preset="vanilla-minimalist"] .btn {
+  border-radius: 0px !important;
+  box-shadow: none !important;
+}
+
+/* 2. Flat Vector 2.0 */
+[data-theme-preset="flat-vector"] .sidebar-custom,
+[data-theme-preset="flat-vector"] .card {
+  border-radius: 4px !important;
+  box-shadow: none !important;
+}
+
+/* 3. Tailwind Skeleton */
+[data-theme-preset="tailwind-skeleton"] .sidebar-custom {
+  background-color: #1f2937 !important;
+}
+[data-theme-preset="tailwind-skeleton"] .sidebar-custom .nav-item {
+  color: #9ca3af !important;
+}
+[data-theme-preset="tailwind-skeleton"] .sidebar-custom .nav-item:hover {
+  color: #ffffff !important;
+  background-color: #374151 !important;
+}
+[data-theme-preset="tailwind-skeleton"] .sidebar-custom .nav-item-active {
+  color: #3b82f6 !important;
+  background-color: #1e3a8a !important;
+  border-left-color: #3b82f6 !important;
+}
+
+/* 4. Edge-First Dark Mode */
+[data-theme-preset="edge-first-dark"] body {
+  background-image: none !important;
+  background-color: #000000 !important;
+}
+[data-theme-preset="edge-first-dark"] .sidebar-custom {
+  background-color: #000000 !important;
+  border-right: 1px solid #111111 !important;
+}
+[data-theme-preset="edge-first-dark"] .card {
+  background-color: #000000 !important;
+  border: 1px solid #1f1f1f !important;
+  box-shadow: none !important;
+}
+
+/* 5. Glassmorphism */
+[data-theme-preset="glassmorphism"] body {
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.15), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(236, 72, 153, 0.12), transparent 45%) !important;
+}
+[data-theme-preset="glassmorphism"] .sidebar-custom {
+  background: rgba(var(--sidebar-bg-rgb), calc(1 - var(--glass-opacity-override) / 100)) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+[data-theme-preset="glassmorphism"] .card {
+  background: rgba(var(--bg-card), calc(1 - var(--glass-opacity-override) / 100)) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 6. Neo-Brutalism */
+[data-theme-preset="neo-brutalism"] .sidebar-custom {
+  border-right: 3px solid #000000 !important;
+  box-shadow: 4px 0px 0px #000000 !important;
+}
+[data-theme-preset="neo-brutalism"] .card {
+  border: 3px solid #000000 !important;
+  box-shadow: 5px 5px 0px #000000 !important;
+  border-radius: 0px !important;
+}
+[data-theme-preset="neo-brutalism"] .btn {
+  border: 2px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+  border-radius: 0px !important;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+[data-theme-preset="neo-brutalism"] .input {
+  border: 2px solid #000000 !important;
+  border-radius: 0px !important;
+}
+
+/* 7. OS-Standard */
+[data-theme-preset="os-standard"] .sidebar-custom {
+  background-color: var(--sidebar-bg-override) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+[data-theme-preset="os-standard"] .card {
+  border-radius: 4px !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
 }

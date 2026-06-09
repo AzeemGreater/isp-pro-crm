@@ -14,6 +14,9 @@
           const config = JSON.parse(localStorage.getItem('custom-ui-config'));
           if (config) {
             const root = document.documentElement;
+            if (config.preset) {
+              root.setAttribute('data-theme-preset', config.preset);
+            }
             
             const hexToRgb = (hex) => {
               const cleaned = hex.replace('#', '').trim();
@@ -22,7 +25,7 @@
               const b = parseInt(cleaned.substring(4, 6), 16);
               return `${r} ${g} ${b}`;
             };
-
+ 
             const getSurface = (bgHex) => {
               const cleaned = bgHex.replace('#', '').trim();
               const r = parseInt(cleaned.substring(0, 2), 16);
@@ -37,7 +40,7 @@
               }
               return '255 255 255';
             };
-
+ 
             if (config.bgColor) {
               root.style.setProperty('--bg-base', hexToRgb(config.bgColor));
               root.style.setProperty('--bg-surface', getSurface(config.bgColor));
@@ -53,6 +56,14 @@
               const accentRgb = hexToRgb(config.accentColor);
               root.style.setProperty('--accent-cyan', accentRgb);
               root.style.setProperty('--brand-blue', accentRgb);
+            }
+            if (config.sidebarColor) {
+              const sidebarRgb = hexToRgb(config.sidebarColor);
+              root.style.setProperty('--sidebar-bg-override', `rgb(${sidebarRgb})`);
+              root.style.setProperty('--sidebar-bg-rgb', sidebarRgb);
+            }
+            if (config.glassOpacity !== undefined) {
+              root.style.setProperty('--glass-opacity-override', String(config.glassOpacity));
             }
             if (config.borderRadius !== undefined) {
               root.style.setProperty('--border-radius-override', config.borderRadius + 'px');

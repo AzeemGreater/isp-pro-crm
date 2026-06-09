@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import net from 'net';
 import { pool } from '../db/pool';
 import { authMiddleware, requireRole, isAgentRequest, getActorAdminId } from '../middleware/auth';
 import { logger } from '../utils/logger';
@@ -218,7 +219,7 @@ router.get('/:id/live-stats', async (req: Request, res: Response) => {
       port:              nas.api_port,
       username:          nas.api_user,
       encryptedPassword: nas.encrypted_api_pass,
-      useTLS:            process.env.MIKROTIK_USE_TLS !== 'false',
+      useTLS:            nas.api_port === 8729,
     };
 
     const [resources, traffic] = await Promise.all([
@@ -410,6 +411,45 @@ router.get('/:id/telemetry', async (req: Request, res: Response) => {
     res.json(result.rows.reverse());
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch telemetry logs' });
+  }
+});
+
+// ─── GET /api/nas/:id/ping ───────────────────────────────────────────────────
+router.get('/:id/ping', async (req: Request, res: Response) => {
+  try {
+    const nasRes = await pool.query('SELECT * FROM nas_routers WHERE id = $1', [req.params.id]);
+    if (!nasRes.rows[0]) {
+      res.status(404).json({ error: 'NAS router not found' });
+      return;
+    }
+    const nas = nasRes.rows[0];
+
+    const start = Date.now();
+    const socket = new net.Socket();
+    let online = false;
+    let latency = -1;
+
+    await new Promise<void>((resolve) => {
+      socket.setTimeout(4000);
+      socket.connect(nas.api_port, nas.ip_address, () => {
+        latency = Date.now() - start;
+        online = true;
+        socket.destroy();
+        resolve();
+      });
+      socket.on('error', () => {
+        socket.destroy();
+        resolve();
+      });
+      socket.on('timeout', () => {
+        socket.destroy();
+        resolve();
+      });
+    });
+
+    res.json({ online, latency_ms: latency, ip: nas.ip_address, port: nas.api_port });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Ping failed' });
   }
 });
 
