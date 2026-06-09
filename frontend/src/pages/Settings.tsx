@@ -23,6 +23,16 @@ interface BrandingSetting {
   accent_color: string
 }
 
+const Section = ({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) => (
+  <div className="card p-5 space-y-4">
+    <div className="flex items-center gap-2 pb-3 border-b border-border">
+      <Icon size={18} className="text-accent-cyan"/>
+      <h3 className="font-semibold text-text-primary">{title}</h3>
+    </div>
+    {children}
+  </div>
+)
+
 export function Settings() {
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [mikrotikPort, setMikrotikPort] = useState(8729)
@@ -142,15 +152,7 @@ export function Settings() {
   const isPrivileged = currentRole === 'SuperAdmin' || currentRole === 'Admin'
   const visibleBranding = (settings?.branding || []).filter((b) => isPrivileged || b.role === currentRole)
 
-  const Section = ({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) => (
-    <div className="card p-5 space-y-4">
-      <div className="flex items-center gap-2 pb-3 border-b border-border">
-        <Icon size={18} className="text-accent-cyan"/>
-        <h3 className="font-semibold text-text-primary">{title}</h3>
-      </div>
-      {children}
-    </div>
-  )
+
 
   return (
     <div className="max-w-2xl space-y-5">
