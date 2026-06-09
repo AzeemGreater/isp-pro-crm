@@ -2,14 +2,14 @@
 --  ISP-CRM Seed Data — for testing & development
 -- =============================================================================
 
--- SuperAdmin account (password: Admin@12345)
+-- SuperAdmin and Agent/Subdealer accounts
 INSERT INTO admins (username, email, hashed_password, full_name, role, wallet_balance, customer_limit) VALUES
-('superadmin', 'admin@isp-crm.local',
- '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMgYMuGnV1y4gAvRgFv.7/c5rO',  -- Admin@12345
+('admin', 'admin@isp-crm.local',
+ '$2b$12$nLeRGfojkkOTygCeR/62.OhawkwE6IR5D1TfSFul7HwWVZHH.Otf2',  -- fastx
  'System Administrator', 'SuperAdmin', 999999.00, NULL),
-('agent_demo', 'agent@isp-crm.local',
- '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMgYMuGnV1y4gAvRgFv.7/c5rO',
- 'Demo Agent', 'Agent', 5000.00, 500);
+('ali', 'ali@isp-crm.local',
+ '$2b$12$WHLPpzjjAi5aeqAXHJ20de5xgwCtD3WXyTLWGoEHS3zCHMxwy2JVe',  -- Ali
+ 'Ali Subdealer', 'Agent', 5000.00, 500);
 
 -- ISP Zones
 INSERT INTO isp_zones (zone_code, area_name, city) VALUES
@@ -61,7 +61,7 @@ VALUES
 INSERT INTO financial_ledger (transaction_type, amount, subscriber_id, admin_id, profile_id, description, payment_method) 
 SELECT 'Credit', 1200.00, s.id, a.id, 2, 'Initial activation payment - Standard 10MB', 'Cash'
 FROM subscribers s, admins a
-WHERE s.pppoe_username = 'testuser001' AND a.username = 'superadmin';
+WHERE s.pppoe_username = 'testuser001' AND a.username = 'admin';
 
 -- Test expired subscriber (should trigger Auth-Type := Reject)
 INSERT INTO subscribers 
@@ -85,7 +85,7 @@ SELECT
           SUBSTRING(MD5(RANDOM()::TEXT), 1, 4)),
     1000.00,
     'BATCH-DEMO-001',
-    (SELECT id FROM admins WHERE username = 'superadmin'),
+    (SELECT id FROM admins WHERE username = 'admin'),
     CURRENT_DATE + INTERVAL '6 months'
 FROM generate_series(1, 10);
 
