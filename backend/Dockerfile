@@ -15,6 +15,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN mkdir -p logs && chown -R appuser:appgroup /app
 USER appuser
 EXPOSE 4000
 CMD ["node", "dist/index.js"]
